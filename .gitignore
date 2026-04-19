@@ -1,7 +1,10 @@
 node_modules/
-.git-broken-20260419/
-.git-failed-20260419/
-.git-pointer-
-  broken
 .env
 *.log
+*.xlsx
+
+.git-broken-20260419/
+.git-failed-20260419/
+.git-pointer-broken
+
+server.node-backup.js

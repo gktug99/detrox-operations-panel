@@ -1,7 +1,7 @@
 {
-  "name": "yeni-projem",
+  "name": "detrox-operations-panel",
   "version": "1.0.0",
-  "description": "Sifirdan basit Node.js REST API projesi",
+  "description": "Detrox montaj personel operasyonel degerlendirme paneli",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

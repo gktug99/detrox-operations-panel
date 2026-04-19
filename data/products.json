@@ -1,0 +1,22 @@
+{
+  "products": [
+    {
+      "id": 1,
+      "name": "Laptop",
+      "price": 35000,
+      "inStock": true
+    },
+    {
+      "id": 2,
+      "name": "Mouse",
+      "price": 900,
+      "inStock": true
+    },
+    {
+      "id": 3,
+      "name": "SSD",
+      "price": 4500,
+      "inStock": true
+    }
+  ]
+}

@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Detrox Montaj Personel Operasyonel Değerlendirme</title>
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <main class="layout">
+      <section class="hero">
+        <div class="brand-strip">
+          <div class="brand-lockup">
+            <img
+              class="brand-logo"
+              src="/assets/detrox-logo-transparent.png"
+              alt="Detro Healthcare logo"
+            />
+            <div class="brand-copy">
+              <p class="eyebrow">Detro Healthcare</p>
+              <p class="brand-subtitle">Montaj Personel Operasyonel Performans Paneli</p>
+            </div>
+          </div>
+          <div class="hero-side">
+            <div class="brand-tag">Kurumsal Değerlendirme Ekranı</div>
+            <div class="hero-actions">
+              <button id="reloadWorkbookButton" class="button">Excel Verisini Yenile</button>
+              <button id="refreshDashboardButton" class="button button-secondary">Paneli Güncelle</button>
+            </div>
+          </div>
+        </div>
+
+        <p class="lede">
+          Operasyon zorluk seviyeleri, kişi başarı oranları, personellerin güçlü olduğu işler ve cihaz bazlı zorluk ortalamaları tek panelde.
+        </p>
+        <p id="statusMessage" class="status">Veri yükleniyor...</p>
+      </section>
+
+      <section class="view-switcher" aria-label="Panel Sekmeleri">
+        <button class="view-tab active" type="button" data-view-target="homeView">Ana Sayfa</button>
+        <button class="view-tab" type="button" data-view-target="employeeView">Personel Detayı</button>
+        <button class="view-tab" type="button" data-view-target="operationView">Operasyon Detayı</button>
+        <button class="view-tab" type="button" data-view-target="growthView">Personel Gelişimi</button>
+      </section>
+
+      <section id="homeView" class="view-panel active">
+        <section class="card-grid" id="summaryCards"></section>
+
+        <section class="panel-grid charts-grid">
+          <article class="panel panel-large">
+            <div class="panel-heading">
+              <h2>Zorluk Derecesine Göre Operasyon Sayısı</h2>
+              <p>1. dereceden 5. dereceye operasyonel zorluk artmaktadır.</p>
+            </div>
+            <div class="toolbar">
+              <select id="difficultyDeviceSelect"></select>
+            </div>
+            <div id="difficultyCountSummary" class="chart-summary"></div>
+            <div id="difficultyCountChart" class="chart-block"></div>
+          </article>
+
+          <article class="panel panel-large">
+            <div class="panel-heading">
+              <h2>Cihaz Bazında Ortalama Zorluk Seviyesi</h2>
+              <p>Hangi cihazda operasyon zorluk derecesi ortalamasının daha yüksek olduğunu gösterir.</p>
+            </div>
+            <div id="deviceDifficultySummary" class="chart-summary"></div>
+            <div id="deviceDifficultyChart" class="chart-block"></div>
+          </article>
+        </section>
+
+        <section class="panel-grid">
+          <article class="panel">
+            <div class="panel-heading">
+              <h2>Riskli Operasyonlar</h2>
+              <p>Zorluk derecesi yüksek ve başarı oranı %50'nin altında kalan operasyonlar.</p>
+            </div>
+            <div id="riskOperations" class="list-block"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <h2>En Başarılı Personeller</h2>
+              <p>Operasyon başarı oranı ve hedef gerçekleşme skoruna göre sıralama.</p>
+            </div>
+            <div id="topEmployees" class="list-block"></div>
+          </article>
+        </section>
+
+      </section>
+
+      <section id="employeeView" class="view-panel">
+        <section class="panel-grid">
+          <article class="panel panel-large">
+            <div class="panel-heading">
+              <h2>Personel Detayı</h2>
+              <p>Personel seçip ana görev, yan görev ve performans detaylarını inceleyin.</p>
+            </div>
+            <div class="toolbar">
+              <select id="employeeSelect"></select>
+            </div>
+            <div id="employeeDetails" class="detail-block"></div>
+          </article>
+        </section>
+
+        <section class="panel-grid">
+          <article class="panel panel-large">
+            <div class="panel-heading">
+              <h2>Personelin Başarısız Olduğu İşler</h2>
+              <p>Seçilen personelin zorlandığı ve hedefi karşılayamadığı operasyonları görün.</p>
+            </div>
+            <div id="employeeStrengthSummary" class="chart-summary"></div>
+            <div id="employeeStrengths" class="detail-block"></div>
+          </article>
+        </section>
+      </section>
+
+      <section id="operationView" class="view-panel">
+        <section class="panel-grid">
+          <article class="panel panel-large">
+            <div class="panel-heading">
+              <h2>Operasyon Detayı</h2>
+              <p>Operasyon bazında katılımcı, hedef, gerçekleşen ve başarı durumlarını inceleyin.</p>
+            </div>
+            <div class="toolbar">
+              <select id="operationDeviceSelect"></select>
+              <select id="operationSelect"></select>
+            </div>
+            <div id="operationDetails" class="detail-block"></div>
+          </article>
+        </section>
+      </section>
+
+      <section id="growthView" class="view-panel">
+        <section class="panel-grid">
+          <article class="panel">
+            <div class="panel-heading">
+              <h2>Gelişim Özeti</h2>
+            </div>
+            <div id="growthSummary" class="detail-block"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <h2>En Çok Gelişen Personeller</h2>
+              <p>Son 30 günlük kayıtta gelişim adedine göre en çok öne çıkan personelleri inceleyin.</p>
+            </div>
+            <div id="growthEmployees" class="detail-block"></div>
+          </article>
+        </section>
+
+        <section class="panel-grid">
+          <article class="panel panel-large">
+            <div class="panel-heading">
+              <h2>Personel Zaman Grafiği</h2>
+              <p>Seçilen personelin kayıtlı günlere göre başarı ve hedef gerçekleşme eğilimini görün.</p>
+            </div>
+            <div class="control-grid">
+              <label class="control">
+                <span>Personel</span>
+                <select id="growthEmployeeSelect"></select>
+              </label>
+              <label class="control">
+                <span>Zaman aralığı</span>
+                <select id="growthRangeSelect"></select>
+              </label>
+              <label class="control" id="growthCustomStartControl" hidden>
+                <span>Başlangıç tarihi</span>
+                <select id="growthCustomStartSelect"></select>
+              </label>
+              <label class="control" id="growthCustomEndControl" hidden>
+                <span>Bitiş tarihi</span>
+                <select id="growthCustomEndSelect"></select>
+              </label>
+            </div>
+            <div id="growthTimeline" class="detail-block"></div>
+          </article>
+        </section>
+
+        <section class="panel-grid">
+          <article class="panel panel-large">
+            <div class="panel-heading">
+              <h2>Operasyon Bazlı Gelişim Hareketleri</h2>
+              <p>Hedefi olan kişiler içinde gelişim oranı en yüksek operasyonları cihaz, zaman ve zorluk derecesine göre inceleyin.</p>
+            </div>
+            <div id="growthChanges" class="detail-block"></div>
+          </article>
+        </section>
+      </section>
+    </main>
+
+    <script src="/app.js?v=20260419-growth-fix-29"></script>
+  </body>
+  </html>

@@ -1,67 +1,91 @@
 # Detrox Operations Panel
 
-Detrox montaj personel operasyonel degerlendirme paneli. Proje, Excel tabanli personel ve operasyon verilerini okuyup web paneli uzerinden ozet, personel detayi, operasyon detayi ve personel gelisimi ekranlari sunar.
-
-## Kurulum
-
-```bash
-npm install
-```
-
-Excel dosyasini proje kokune kopyalayin. Repo icinde `.xlsx` dosyasi tutulmaz; uygulama calisirken yerelde okunur.
-
-Beklenen dosya adina ornek:
-
-```text
-CİHAZ ÜRETİM YETKİNLİK MATRİSİ_20261901.xlsx
-```
+Detrox montaj personel operasyonel degerlendirme paneli. Uygulama Excel tabanli personel ve operasyon verilerini okuyup panel uzerinde anlik analiz, personel detayi, operasyon detayi ve gunluk gelisim kayitlari sunar.
 
 ## Calistirma
 
-Varsayilan port:
-
 ```bash
+npm install
 npm start
 ```
 
-Farkli port:
+Farkli port icin:
 
 ```bash
 PORT=3001 npm start
 ```
 
-Tarayicidan panel:
+## Excel ve Veri Konumu
 
-```text
-http://127.0.0.1:3001
+Canli kullanimda Excel dosyasini repo icine koymak yerine sabit bir storage klasorunde tutun.
+
+Desteklenen ortam degiskenleri:
+
+```bash
+export STORAGE_DIR="/opt/detrox/storage"
+export WORKBOOK_PATH="/opt/detrox/storage/current-matrix.xlsx"
+export PERSONNEL_GROWTH_FILE="/opt/detrox/storage/personnel-growth-history.json"
+export SNAPSHOT_SCHEDULER_ENABLED="false"
 ```
+
+Notlar:
+
+- `WORKBOOK_PATH` verilirse uygulama bu dosyayi okur.
+- `WORKBOOK_PATH` verilmezse once `STORAGE_DIR` icindeki dosyaya bakar.
+- Eski kurulum uyumlulugu icin proje kokundeki Excel dosyasini da fallback olarak okuyabilir.
+- Gunluk gelisim kayitlari `PERSONNEL_GROWTH_FILE` dosyasinda tutulur.
+
+## Gunluk Snapshot Mantigi
+
+Uygulama her gun tek bir kayit uretmelidir. Siz Excel dosyasini gun icinde degistirseniz bile yeni gelisim verisi bir sonraki planli snapshot aninda kayda girer.
+
+Elle snapshot almak icin:
+
+```bash
+npm run snapshot:daily
+```
+
+Bu komut:
+
+- Excel dosyasini okur
+- bugunun tarihi icin kayit var mi kontrol eder
+- yoksa yeni gunluk snapshot ekler
+- varsa ikinci kaydi acmaz
+
+## Canli Ortam Onerisi
+
+Uretimde dahili `setTimeout` zamanlayicisi yerine sistem zamanlayicisi kullanmaniz daha saglam olur.
+
+Ornek cron:
+
+```cron
+0 0 * * * cd /opt/detrox/app && /usr/bin/npm run snapshot:daily >> /opt/detrox/logs/snapshot.log 2>&1
+```
+
+Bu modelde:
+
+- Excel dosyasi sabit bir yerde durur
+- siz dosyanin icerigini guncellersiniz
+- saat 00:00 oldugunda yeni gunluk snapshot olusur
+- frontend tum gelisim ekranlarini bu kayitlardan uretir
+
+## Saglik Kontrolu
+
+`/health` endpoint'i sunucunun hangi Excel dosyasini ve hangi growth history dosyasini kullandigini gosterir.
 
 ## Temel Endpointler
 
 - `GET /health`
-- `GET /products`
-- `GET /products/:id`
-- `POST /products`
-- `PUT /products/:id`
-- `DELETE /products/:id`
 - `GET /analytics/overview`
 - `GET /analytics/employees`
-- `GET /analytics/employees/:name`
 - `GET /analytics/operations`
-- `GET /analytics/operations/:operationName`
+- `GET /analytics/personnel-growth`
 - `POST /analytics/reload`
+- `POST /analytics/personnel-growth/snapshot`
 
-## Analiz Kurallari
+## Basari Kurali
 
-- Operasyon verileri Excel icindeki ilgili sayfalardan okunur.
-- Personel ana gorev ve yan gorev bilgileri ayri sayfalardan eslestirilir.
 - Basari kurali `gerceklesen > 3` seklindedir.
 - Yalnizca `4` ve `5` alanlar basarili kabul edilir.
 - `1`, `2` ve `3` alanlar basarisiz kabul edilir.
 - Hedef puani olmayan kayitlar basari oranlarina dahil edilmez.
-- Gunluk gelisim kayitlari `data/personnel-growth-history.json` icinde tutulur.
-
-## Gelistirme Notlari
-
-- `node_modules/`, yerel Excel dosyalari ve gecici Git pointer dosyalari repoya dahil edilmez.
-- Proje Windows klasorunde calissa bile Git verisi WSL tarafinda tutulabilir.

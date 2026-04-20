@@ -2,8 +2,16 @@ const express = require("express");
 const fs = require("fs/promises");
 const fsSync = require("fs");
 const path = require("path");
+const {
+  DATA_DIR,
+  STORAGE_DIR,
+  WORKBOOK_PATH,
+  PRODUCTS_FILE: DATA_FILE,
+  PERSONNEL_GROWTH_FILE,
+  SNAPSHOT_SCHEDULER_ENABLED
+} = require("./config");
 const { generateAiInsights } = require("./services/aiInsights");
-const { WORKBOOK_PATH, loadWorkbookAnalytics, normalizePersonName } = require("./services/workbookAnalytics");
+const { loadWorkbookAnalytics, normalizePersonName } = require("./services/workbookAnalytics");
 const {
   getLocalDateKey,
   getNextMidnightDelayMs,
@@ -14,9 +22,6 @@ const {
 
 const HOST = process.env.HOST || "127.0.0.1";
 const PORT = process.env.PORT || 3000;
-const DATA_DIR = path.join(__dirname, "data");
-const DATA_FILE = path.join(DATA_DIR, "products.json");
-const PERSONNEL_GROWTH_FILE = path.join(DATA_DIR, "personnel-growth-history.json");
 
 const app = express();
 
@@ -31,7 +36,7 @@ let workbookLastModifiedMs = null;
 let midnightRefreshTimer = null;
 
 async function ensureDataFile() {
-  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.mkdir(path.dirname(DATA_FILE), { recursive: true });
 
   try {
     await fs.access(DATA_FILE);
@@ -87,6 +92,11 @@ async function runMidnightRefresh() {
 }
 
 function scheduleMidnightRefresh() {
+  if (!SNAPSHOT_SCHEDULER_ENABLED) {
+    console.log("Dahili gunluk snapshot zamanlayicisi devre disi.");
+    return;
+  }
+
   if (midnightRefreshTimer) {
     clearTimeout(midnightRefreshTimer);
   }
@@ -174,7 +184,11 @@ app.get("/health", (req, res) => {
     status: "ok",
     workbookLoaded: Boolean(workbookAnalytics),
     workbookLoadedAt: workbookAnalytics?.loadedAt || null,
-    workbookPath: WORKBOOK_PATH
+    workbookPath: WORKBOOK_PATH,
+    productsPath: DATA_FILE,
+    growthHistoryPath: PERSONNEL_GROWTH_FILE,
+    storageDir: STORAGE_DIR,
+    schedulerEnabled: SNAPSHOT_SCHEDULER_ENABLED
   });
 });
 

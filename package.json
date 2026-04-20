@@ -4,7 +4,8 @@
   "description": "Detrox montaj personel operasyonel degerlendirme paneli",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "snapshot:daily": "node scripts/take-daily-snapshot.js"
   },
   "keywords": [
     "nodejs",

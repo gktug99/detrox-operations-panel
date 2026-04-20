@@ -1,9 +1,7 @@
 const fs = require("fs");
-const path = require("path");
 const xlsx = require("xlsx");
+const { WORKBOOK_PATH } = require("../config");
 
-const WORKBOOK_NAME = "CİHAZ ÜRETİM YETKİNLİK MATRİSİ_20261901.xlsx";
-const WORKBOOK_PATH = path.join(__dirname, "..", WORKBOOK_NAME);
 const SUCCESS_THRESHOLD = 3;
 
 function toNumber(value) {

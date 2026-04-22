@@ -2107,14 +2107,7 @@ async function loadDashboard() {
   setStatus(`Son yükleme: ${new Date().toLocaleString("tr-TR")}`);
 }
 
-async function reloadWorkbook() {
-  setStatus("Excel dosyası yeniden yükleniyor...");
-  await fetchJsonOrThrow("/analytics/reload", { method: "POST" });
-  await loadDashboard();
-}
 
-document.getElementById("refreshDashboardButton").onclick = loadDashboard;
-document.getElementById("reloadWorkbookButton").onclick = reloadWorkbook;
 initializeViewTabs();
 
 loadDashboard().catch((error) => {

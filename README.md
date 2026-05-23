@@ -19,20 +19,37 @@ PORT=3001 npm start
 
 Canli kullanimda Excel dosyasini repo icine koymak yerine sabit bir storage klasorunde tutun.
 
+## Veritabani (SQLite) + Export Excel (Yeni)
+
+Bu projede artik **veri kaynagi veritabanidir (SQLite)**. Paneldeki analytics ekranlari icin uygulama, veritabanindaki veriyi otomatik olarak **ayri bir "data workbook" Excel dosyasina export eder** ve analytics bu Excel uzerinden calisir.
+
+Varsayilanlar:
+
+- DB dosyasi: `STORAGE_DIR/detrox.sqlite`
+- Data workbook: `STORAGE_DIR/detrox-data-workbook.xlsx`
+- Admin sifre: `detrox2024` (Veri Gunceleme sekmesi)
+
+Ilk calistirmada DB bos ise, uygulama proje kokundeki Excel dosyasindan otomatik import etmeyi dener. Farkli bir Excel dosyasindan import icin:
+
+```bash
+export IMPORT_WORKBOOK_PATH="/opt/detrox/storage/eski-matrix.xlsx"
+```
+
 Desteklenen ortam degiskenleri:
 
 ```bash
 export STORAGE_DIR="/opt/detrox/storage"
-export WORKBOOK_PATH="/opt/detrox/storage/current-matrix.xlsx"
+export DATA_WORKBOOK_PATH="/opt/detrox/storage/detrox-data-workbook.xlsx"
+export DB_PATH="/opt/detrox/storage/detrox.sqlite"
+export ADMIN_PASSWORD="detrox2024"
 export PERSONNEL_GROWTH_FILE="/opt/detrox/storage/personnel-growth-history.json"
 export SNAPSHOT_SCHEDULER_ENABLED="false"
 ```
 
 Notlar:
 
-- `WORKBOOK_PATH` verilirse uygulama bu dosyayi okur.
-- `WORKBOOK_PATH` verilmezse once `STORAGE_DIR` icindeki dosyaya bakar.
-- Eski kurulum uyumlulugu icin proje kokundeki Excel dosyasini da fallback olarak okuyabilir.
+- `WORKBOOK_PATH` verilirse analytics dogrudan o Excel dosyasini okur (legacy mod).
+- `WORKBOOK_PATH` verilmezse `DATA_WORKBOOK_PATH` kullanilir (DB -> Excel export mod).
 - Gunluk gelisim kayitlari `PERSONNEL_GROWTH_FILE` dosyasinda tutulur.
 
 ## Gunluk Snapshot Mantigi

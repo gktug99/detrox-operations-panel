@@ -37,6 +37,7 @@
         <button class="view-tab" type="button" data-view-target="employeeView">Personel Detayı</button>
         <button class="view-tab" type="button" data-view-target="operationView">Operasyon Detayı</button>
         <button class="view-tab" type="button" data-view-target="growthView">Personel Gelişimi</button>
+        <button class="view-tab" type="button" data-view-target="dataView">Veri Güncelleme</button>
       </section>
 
       <section id="homeView" class="view-panel active">
@@ -180,6 +181,132 @@
               <p>Hedefi olan kişiler içinde gelişim oranı en yüksek operasyonları cihaz, zaman ve zorluk derecesine göre inceleyin.</p>
             </div>
             <div id="growthChanges" class="detail-block"></div>
+          </article>
+        </section>
+      </section>
+
+      <section id="dataView" class="view-panel">
+        <section class="panel-grid">
+          <article class="panel panel-large">
+            <div class="panel-heading">
+              <h2>Veri Güncelleme</h2>
+              <p>Personel ve operasyon yönetimi, hedef/gerçekleşen puan girişleri bu ekrandan yapılır.</p>
+            </div>
+
+            <div class="control-grid">
+              <label class="control">
+                <span>Şifre</span>
+                <input id="adminPasswordInput" class="text-input" type="password" autocomplete="off" />
+              </label>
+              <div class="control">
+                <span>&nbsp;</span>
+                <button id="adminUnlockButton" class="button" type="button">Kilidi Aç</button>
+              </div>
+              <div class="control">
+                <span>&nbsp;</span>
+                <button id="adminLockButton" class="button button-secondary" type="button">Kilitle</button>
+              </div>
+            </div>
+
+            <div id="adminLockedNotice" class="empty-state-block">
+              <p class="empty-state">Bu sekme şifre korumalıdır.</p>
+            </div>
+
+            <div id="adminWorkspace" hidden>
+              <div class="panel-grid">
+                <article class="panel panel-large">
+                  <div class="panel-heading">
+                    <h3>Personel</h3>
+                    <p>Personel ekle/sil, görev bilgilerini güncelle.</p>
+                  </div>
+                  <div class="control-grid">
+                    <label class="control">
+                      <span>Ad Soyad</span>
+                      <input id="personnelNameInput" class="text-input" type="text" />
+                    </label>
+                    <label class="control">
+                      <span>Ana görev</span>
+                      <input id="personnelMainDutyInput" class="text-input" type="text" />
+                    </label>
+                    <label class="control">
+                      <span>Yan görev</span>
+                      <input id="personnelSecondaryDutyInput" class="text-input" type="text" />
+                    </label>
+                    <label class="control">
+                      <span>Yetkilisi</span>
+                      <input id="personnelSupervisorInput" class="text-input" type="text" />
+                    </label>
+                    <div class="control">
+                      <span>&nbsp;</span>
+                      <button id="personnelSaveButton" class="button" type="button">Kaydet</button>
+                    </div>
+                    <div class="control">
+                      <span>&nbsp;</span>
+                      <button id="personnelCancelButton" class="button button-secondary" type="button">İptal</button>
+                    </div>
+                  </div>
+                  <div id="personnelList" class="detail-block"></div>
+                </article>
+              </div>
+
+              <div class="panel-grid">
+                <article class="panel panel-large">
+                  <div class="panel-heading">
+                    <h3>Operasyon</h3>
+                    <p>Operasyon ekle/sil, zorluk derecesi ve puan girişlerini yönet.</p>
+                  </div>
+                  <div class="control-grid">
+                    <label class="control">
+                      <span>Cihaz</span>
+                      <input id="operationDeviceInput" class="text-input" type="text" />
+                    </label>
+                    <label class="control">
+                      <span>Stok kodu</span>
+                      <input id="operationStockCodeInput" class="text-input" type="text" />
+                    </label>
+                    <label class="control">
+                      <span>Operasyon adı</span>
+                      <input id="operationNameInput" class="text-input" type="text" />
+                    </label>
+                    <label class="control">
+                      <span>Zorluk (1-5)</span>
+                      <select id="operationDifficultySelect"></select>
+                    </label>
+                    <div class="control">
+                      <span>&nbsp;</span>
+                      <button id="operationSaveButton" class="button" type="button">Kaydet</button>
+                    </div>
+                    <div class="control">
+                      <span>&nbsp;</span>
+                      <button id="operationCancelButton" class="button button-secondary" type="button">İptal</button>
+                    </div>
+                  </div>
+
+                  <div class="panel-grid">
+                    <article class="panel panel-large">
+                      <div class="panel-heading">
+                        <h3>Operasyon Listesi</h3>
+                      </div>
+                      <div id="operationList" class="detail-block"></div>
+                    </article>
+                  </div>
+
+                  <div class="panel-grid">
+                    <article class="panel panel-large">
+                      <div class="panel-heading">
+                        <h3>Operasyon Puanları</h3>
+                        <p>Seçili operasyon için personel hedef/gerçekleşen puanlarını gir.</p>
+                      </div>
+                      <div class="toolbar">
+                        <select id="adminOperationSelect"></select>
+                        <button id="scoresSaveButton" class="button" type="button">Puanları Kaydet</button>
+                      </div>
+                      <div id="scoresEditor" class="detail-block"></div>
+                    </article>
+                  </div>
+                </article>
+              </div>
+            </div>
           </article>
         </section>
       </section>

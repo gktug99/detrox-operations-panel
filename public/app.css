@@ -9,6 +9,7 @@
   --line: rgba(87, 112, 129, 0.18);
   --ok: #5e8f7d;
   --bad: #8c98a3;
+  --danger: #b04d4d;
   --shadow: 0 20px 42px rgba(92, 118, 137, 0.12);
 }
 
@@ -163,6 +164,19 @@ select {
   border: 1px solid var(--line);
 }
 
+select,
+.text-input {
+  background: var(--surface-strong);
+  color: var(--text);
+  padding: 12px 14px;
+  font-size: 14px;
+  width: 100%;
+}
+
+.text-input::placeholder {
+  color: color-mix(in srgb, var(--muted) 80%, transparent);
+}
+
 .button {
   background: var(--accent);
   color: #fff;
@@ -179,6 +193,50 @@ select {
 
 .button:hover {
   background: var(--accent-dark);
+}
+
+.empty-state-block {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface-strong);
+}
+
+.highlight-pulse {
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 6px;
+  border-radius: 18px;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.admin-table th {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mini-button.danger {
+  background: color-mix(in srgb, var(--danger) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  color: var(--danger);
 }
 
 .status {

@@ -4,6 +4,14 @@ const state = {
   operations: [],
   growthReport: null,
   growthLoading: false,
+  adminUnlocked: false,
+  adminPassword: "",
+  adminPersonnel: [],
+  adminOperations: [],
+  adminEditingPersonnelId: null,
+  adminEditingOperationId: null,
+  adminSelectedOperationId: "",
+  adminOperationScores: null,
   selectedGrowthEmployee: "",
   selectedGrowthRange: "30d",
   selectedGrowthCustomStart: "",
@@ -430,8 +438,529 @@ function initializeViewTabs() {
       if (targetId === "growthView") {
         refreshGrowthDashboard();
       }
+
+      if (targetId === "dataView") {
+        refreshAdminView();
+      }
     };
   });
+}
+
+function getStoredAdminPassword() {
+  try {
+    return sessionStorage.getItem("detrox_admin_password") || "";
+  } catch {
+    return "";
+  }
+}
+
+function storeAdminPassword(password) {
+  try {
+    sessionStorage.setItem("detrox_admin_password", password);
+  } catch {
+    // ignore
+  }
+}
+
+function clearStoredAdminPassword() {
+  try {
+    sessionStorage.removeItem("detrox_admin_password");
+  } catch {
+    // ignore
+  }
+}
+
+async function adminFetchJsonOrThrow(url, options = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+    "x-admin-password": state.adminPassword
+  };
+
+  return fetchJsonOrThrow(url, { ...options, headers });
+}
+
+function setAdminLockedUi(isUnlocked) {
+  const workspace = document.getElementById("adminWorkspace");
+  const notice = document.getElementById("adminLockedNotice");
+
+  state.adminUnlocked = Boolean(isUnlocked);
+  workspace.hidden = !state.adminUnlocked;
+  notice.hidden = state.adminUnlocked;
+}
+
+function resetPersonnelForm() {
+  state.adminEditingPersonnelId = null;
+  document.getElementById("personnelNameInput").value = "";
+  document.getElementById("personnelMainDutyInput").value = "";
+  document.getElementById("personnelSecondaryDutyInput").value = "";
+  document.getElementById("personnelSupervisorInput").value = "";
+}
+
+function resetOperationForm() {
+  state.adminEditingOperationId = null;
+  document.getElementById("operationDeviceInput").value = "";
+  document.getElementById("operationStockCodeInput").value = "";
+  document.getElementById("operationNameInput").value = "";
+  document.getElementById("operationDifficultySelect").value = "1";
+}
+
+function pulseElement(element) {
+  if (!element) {
+    return;
+  }
+
+  element.classList.add("highlight-pulse");
+  setTimeout(() => element.classList.remove("highlight-pulse"), 900);
+}
+
+function renderPersonnelList() {
+  const container = document.getElementById("personnelList");
+
+  if (!state.adminPersonnel.length) {
+    container.innerHTML = `<p class="empty-state">Henüz personel yok.</p>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Ad Soyad</th>
+          <th>Ana görev</th>
+          <th>Yan görev</th>
+          <th>Yetkilisi</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${state.adminPersonnel
+          .map(
+            (person) => `
+              <tr>
+                <td>${escapeHtml(person.name)}</td>
+                <td>${escapeHtml(person.main_duty)}</td>
+                <td>${escapeHtml(person.secondary_duty)}</td>
+                <td>${escapeHtml(person.supervisor)}</td>
+                <td>
+                  <div class="admin-actions">
+                    <button class="mini-button" type="button" data-personnel-edit="${person.id}">Düzenle</button>
+                    <button class="mini-button danger" type="button" data-personnel-delete="${person.id}">Sil</button>
+                  </div>
+                </td>
+              </tr>
+            `
+          )
+          .join("")}
+      </tbody>
+    </table>
+  `;
+
+  document.querySelectorAll("[data-personnel-edit]").forEach((button) => {
+    button.onclick = () => {
+      const id = Number(button.dataset.personnelEdit);
+      const person = state.adminPersonnel.find((row) => row.id === id);
+      if (!person) return;
+
+      state.adminEditingPersonnelId = id;
+      document.getElementById("personnelNameInput").value = person.name;
+      document.getElementById("personnelMainDutyInput").value = person.main_duty;
+      document.getElementById("personnelSecondaryDutyInput").value = person.secondary_duty;
+      document.getElementById("personnelSupervisorInput").value = person.supervisor;
+
+      document.getElementById("personnelNameInput").focus();
+      document.getElementById("personnelNameInput").scrollIntoView({ behavior: "smooth", block: "center" });
+      setStatus(`Düzenleme modu: ${person.name}`);
+    };
+  });
+
+  document.querySelectorAll("[data-personnel-delete]").forEach((button) => {
+    button.onclick = async () => {
+      const id = Number(button.dataset.personnelDelete);
+      const person = state.adminPersonnel.find((row) => row.id === id);
+      if (!person) return;
+
+      if (!confirm(`${person.name} silinsin mi? (İlgili puanlar da silinir)`)) {
+        return;
+      }
+
+      await adminFetchJsonOrThrow(`/admin/personnel/${id}`, { method: "DELETE" });
+      await refreshAdminData();
+      await loadDashboard();
+    };
+  });
+}
+
+function renderOperationList() {
+  const container = document.getElementById("operationList");
+
+  if (!state.adminOperations.length) {
+    container.innerHTML = `<p class="empty-state">Henüz operasyon yok.</p>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Sıra</th>
+          <th>Cihaz</th>
+          <th>Stok kodu</th>
+          <th>Operasyon adı</th>
+          <th>Zorluk</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${state.adminOperations
+          .map(
+            (op) => `
+              <tr>
+                <td>${escapeHtml(op.sequence)}</td>
+                <td>${escapeHtml(op.device)}</td>
+                <td>${escapeHtml(op.stock_code)}</td>
+                <td>${escapeHtml(op.operation_name)}</td>
+                <td>${escapeHtml(op.difficulty)}</td>
+                <td>
+                  <div class="admin-actions">
+                    <button class="mini-button" type="button" data-operation-edit="${op.id}">Düzenle</button>
+                    <button class="mini-button" type="button" data-operation-scores="${op.id}">Puanlar</button>
+                    <button class="mini-button danger" type="button" data-operation-delete="${op.id}">Sil</button>
+                  </div>
+                </td>
+              </tr>
+            `
+          )
+          .join("")}
+      </tbody>
+    </table>
+  `;
+
+  document.querySelectorAll("[data-operation-edit]").forEach((button) => {
+    button.onclick = () => {
+      const id = Number(button.dataset.operationEdit);
+      const op = state.adminOperations.find((row) => row.id === id);
+      if (!op) return;
+
+      state.adminEditingOperationId = id;
+      document.getElementById("operationDeviceInput").value = op.device;
+      document.getElementById("operationStockCodeInput").value = op.stock_code;
+      document.getElementById("operationNameInput").value = op.operation_name;
+      document.getElementById("operationDifficultySelect").value = String(op.difficulty);
+
+      document.getElementById("operationDeviceInput").focus();
+      document.getElementById("operationDeviceInput").scrollIntoView({ behavior: "smooth", block: "center" });
+      setStatus(`Operasyon düzenleme modu: ${op.device} • ${op.operation_name}`);
+    };
+  });
+
+  document.querySelectorAll("[data-operation-scores]").forEach((button) => {
+    button.onclick = async () => {
+      try {
+        const id = String(button.dataset.operationScores);
+        const select = document.getElementById("adminOperationSelect");
+        if (select) {
+          select.value = id;
+        }
+        state.adminSelectedOperationId = id;
+        await refreshAdminScores();
+        const scoresEditor = document.getElementById("scoresEditor");
+        scoresEditor.scrollIntoView({ behavior: "smooth", block: "start" });
+        pulseElement(scoresEditor);
+        setStatus("Operasyon puanları açıldı.");
+      } catch (error) {
+        setStatus(`Puanlar yüklenemedi: ${error.message}`);
+      }
+    };
+  });
+
+  document.querySelectorAll("[data-operation-delete]").forEach((button) => {
+    button.onclick = async () => {
+      const id = Number(button.dataset.operationDelete);
+      const op = state.adminOperations.find((row) => row.id === id);
+      if (!op) return;
+
+      if (!confirm(`${op.operation_name} silinsin mi? (İlgili puanlar da silinir)`)) {
+        return;
+      }
+
+      await adminFetchJsonOrThrow(`/admin/operations/${id}`, { method: "DELETE" });
+      await refreshAdminData();
+      await loadDashboard();
+    };
+  });
+}
+
+function renderAdminOperationSelect() {
+  const select = document.getElementById("adminOperationSelect");
+
+  select.innerHTML = state.adminOperations
+    .map(
+      (op) => `<option value="${op.id}">${escapeHtml(op.device)} • ${escapeHtml(op.operation_name)}</option>`
+    )
+    .join("");
+
+  if (!state.adminSelectedOperationId && state.adminOperations.length) {
+    state.adminSelectedOperationId = String(state.adminOperations[0].id);
+  }
+
+  select.value = state.adminSelectedOperationId || "";
+  select.onchange = async () => {
+    state.adminSelectedOperationId = select.value;
+    await refreshAdminScores();
+  };
+}
+
+function renderScoresEditor() {
+  const container = document.getElementById("scoresEditor");
+
+  if (!state.adminOperationScores) {
+    container.innerHTML = `<p class="empty-state">Operasyon seç.</p>`;
+    return;
+  }
+
+  const rows = state.adminOperationScores.rows || [];
+
+  if (!rows.length) {
+    container.innerHTML = `<p class="empty-state">Henüz personel yok.</p>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <table class="admin-table">
+      <thead>
+        <tr>
+          <th>Personel</th>
+          <th>Hedef (1-5)</th>
+          <th>Gerçekleşen (1-5)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows
+          .map(
+            (row) => `
+              <tr>
+                <td>${escapeHtml(row.name)}</td>
+                <td><input class="text-input" inputmode="numeric" pattern="[0-9]*" data-score-target="${row.personnelId}" value="${row.targetScore ?? ""}" /></td>
+                <td><input class="text-input" inputmode="numeric" pattern="[0-9]*" data-score-actual="${row.personnelId}" value="${row.actualScore ?? ""}" /></td>
+              </tr>
+            `
+          )
+          .join("")}
+      </tbody>
+    </table>
+    <p class="empty-state">Boş bırakılan hedef/gerçekleşen alanları kaydedilmez (o personelde o operasyon için puan yok).</p>
+  `;
+}
+
+async function refreshAdminScores() {
+  if (!state.adminSelectedOperationId) {
+    state.adminOperationScores = null;
+    renderScoresEditor();
+    return;
+  }
+
+  state.adminOperationScores = await adminFetchJsonOrThrow(
+    `/admin/operations/${state.adminSelectedOperationId}/scores`,
+    { cache: "no-store" }
+  );
+
+  renderScoresEditor();
+}
+
+async function refreshAdminData() {
+  const [personnel, operations] = await Promise.all([
+    adminFetchJsonOrThrow("/admin/personnel", { cache: "no-store" }),
+    adminFetchJsonOrThrow("/admin/operations", { cache: "no-store" })
+  ]);
+
+  state.adminPersonnel = personnel;
+  state.adminOperations = operations;
+
+  renderPersonnelList();
+  renderOperationList();
+  renderAdminOperationSelect();
+  await refreshAdminScores();
+}
+
+async function unlockAdmin(password) {
+  state.adminPassword = String(password || "");
+  storeAdminPassword(state.adminPassword);
+
+  await adminFetchJsonOrThrow("/admin/meta", { cache: "no-store" });
+  setAdminLockedUi(true);
+  document.getElementById("adminPasswordInput").value = "";
+  setStatus("Veri Güncelleme kilidi açıldı.");
+  await refreshAdminData();
+}
+
+function lockAdmin() {
+  state.adminPassword = "";
+  clearStoredAdminPassword();
+  setAdminLockedUi(false);
+  resetPersonnelForm();
+  resetOperationForm();
+  state.adminSelectedOperationId = "";
+  state.adminOperationScores = null;
+  document.getElementById("adminPasswordInput").value = "";
+  setStatus("Veri Güncelleme kilitlendi.");
+}
+
+function initializeAdminControls() {
+  const difficultySelect = document.getElementById("operationDifficultySelect");
+  if (difficultySelect) {
+    difficultySelect.innerHTML = [1, 2, 3, 4, 5].map((value) => `<option value="${value}">${value}</option>`).join("");
+    difficultySelect.value = "1";
+  }
+
+  const unlockButton = document.getElementById("adminUnlockButton");
+  const lockButton = document.getElementById("adminLockButton");
+
+  if (unlockButton) {
+    unlockButton.onclick = async () => {
+      const password = document.getElementById("adminPasswordInput").value;
+      try {
+        await unlockAdmin(password);
+      } catch (error) {
+        setStatus(`Admin kilidi acilamadi: ${error.message}`);
+        setAdminLockedUi(false);
+      }
+    };
+  }
+
+  if (lockButton) {
+    lockButton.onclick = () => lockAdmin();
+  }
+
+  const personnelSaveButton = document.getElementById("personnelSaveButton");
+  const personnelCancelButton = document.getElementById("personnelCancelButton");
+
+  if (personnelSaveButton) {
+    personnelSaveButton.onclick = async () => {
+      const payload = {
+        name: document.getElementById("personnelNameInput").value,
+        mainDuty: document.getElementById("personnelMainDutyInput").value,
+        secondaryDuty: document.getElementById("personnelSecondaryDutyInput").value,
+        supervisor: document.getElementById("personnelSupervisorInput").value
+      };
+
+      const id = state.adminEditingPersonnelId;
+
+      try {
+        if (id) {
+          await adminFetchJsonOrThrow(`/admin/personnel/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+        } else {
+          await adminFetchJsonOrThrow("/admin/personnel", { method: "POST", body: JSON.stringify(payload) });
+        }
+
+        setStatus("Personel kaydedildi.");
+        resetPersonnelForm();
+        await refreshAdminData();
+        await loadDashboard();
+      } catch (error) {
+        setStatus(`Personel kaydedilemedi: ${error.message}`);
+      }
+    };
+  }
+
+  if (personnelCancelButton) {
+    personnelCancelButton.onclick = () => resetPersonnelForm();
+  }
+
+  const operationSaveButton = document.getElementById("operationSaveButton");
+  const operationCancelButton = document.getElementById("operationCancelButton");
+
+  if (operationSaveButton) {
+    operationSaveButton.onclick = async () => {
+      const payload = {
+        device: document.getElementById("operationDeviceInput").value,
+        stockCode: document.getElementById("operationStockCodeInput").value,
+        operationName: document.getElementById("operationNameInput").value,
+        difficulty: document.getElementById("operationDifficultySelect").value
+      };
+
+      const id = state.adminEditingOperationId;
+
+      try {
+        if (id) {
+          await adminFetchJsonOrThrow(`/admin/operations/${id}`, { method: "PUT", body: JSON.stringify(payload) });
+        } else {
+          await adminFetchJsonOrThrow("/admin/operations", { method: "POST", body: JSON.stringify(payload) });
+        }
+
+        setStatus("Operasyon kaydedildi.");
+        resetOperationForm();
+        await refreshAdminData();
+        await loadDashboard();
+      } catch (error) {
+        setStatus(`Operasyon kaydedilemedi: ${error.message}`);
+      }
+    };
+  }
+
+  if (operationCancelButton) {
+    operationCancelButton.onclick = () => resetOperationForm();
+  }
+
+  const scoresSaveButton = document.getElementById("scoresSaveButton");
+
+  if (scoresSaveButton) {
+    scoresSaveButton.onclick = async () => {
+      if (!state.adminSelectedOperationId) {
+        return;
+      }
+
+      try {
+        const updates = state.adminPersonnel.map((person) => {
+          const targetInput = document.querySelector(`[data-score-target=\"${person.id}\"]`);
+          const actualInput = document.querySelector(`[data-score-actual=\"${person.id}\"]`);
+
+          return {
+            personnelId: person.id,
+            targetScore: targetInput ? targetInput.value : "",
+            actualScore: actualInput ? actualInput.value : ""
+          };
+        });
+
+        await adminFetchJsonOrThrow(`/admin/operations/${state.adminSelectedOperationId}/scores`, {
+          method: "PUT",
+          body: JSON.stringify({ updates })
+        });
+
+        setStatus("Puanlar kaydedildi.");
+        await refreshAdminData();
+        await loadDashboard();
+      } catch (error) {
+        setStatus(`Puanlar kaydedilemedi: ${error.message}`);
+      }
+    };
+  }
+
+  const storedPassword = getStoredAdminPassword();
+  if (storedPassword) {
+    state.adminPassword = storedPassword;
+    setAdminLockedUi(false);
+  } else {
+    setAdminLockedUi(false);
+  }
+}
+
+async function refreshAdminView() {
+  if (!state.adminPassword) {
+    setAdminLockedUi(false);
+    return;
+  }
+
+  if (!state.adminUnlocked) {
+    try {
+      await unlockAdmin(state.adminPassword);
+    } catch {
+      setAdminLockedUi(false);
+    }
+    return;
+  }
+
+  await refreshAdminData();
 }
 
 function createSummaryCard(label, value) {
@@ -2109,6 +2638,7 @@ async function loadDashboard() {
 
 
 initializeViewTabs();
+initializeAdminControls();
 
 loadDashboard().catch((error) => {
   setStatus(`Veri yüklenemedi: ${error.message}`);

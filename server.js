@@ -6,12 +6,18 @@ const {
   DATA_DIR,
   STORAGE_DIR,
   WORKBOOK_PATH,
+  DATA_WORKBOOK_PATH,
+  DB_PATH,
+  ADMIN_PASSWORD,
   PRODUCTS_FILE: DATA_FILE,
   PERSONNEL_GROWTH_FILE,
   SNAPSHOT_SCHEDULER_ENABLED
 } = require("./config");
 const { generateAiInsights } = require("./services/aiInsights");
 const { loadWorkbookAnalytics, normalizePersonName } = require("./services/workbookAnalytics");
+const { openDb, listPersonnel, createPersonnel, updatePersonnel, deletePersonnel, listOperations, createOperation, updateOperation, deleteOperation, listOperationScores, setOperationScores } = require("./services/dataDb");
+const { exportDataWorkbook } = require("./services/exportDataWorkbook");
+const { importWorkbookToDb } = require("./services/importWorkbookToDb");
 const {
   getLocalDateKey,
   getNextMidnightDelayMs,
@@ -34,6 +40,7 @@ let products = [];
 let workbookAnalytics = null;
 let workbookLastModifiedMs = null;
 let midnightRefreshTimer = null;
+let db = null;
 
 async function ensureDataFile() {
   await fs.mkdir(path.dirname(DATA_FILE), { recursive: true });
@@ -76,6 +83,37 @@ function reloadWorkbookAnalytics() {
   workbookAnalytics = loadWorkbookAnalytics();
   workbookLastModifiedMs = workbookStats.mtimeMs;
   return workbookAnalytics;
+}
+
+function isDbEmpty() {
+  const row = db
+    .prepare(
+      "SELECT (SELECT COUNT(*) FROM personnel) AS personnelCount, (SELECT COUNT(*) FROM operations) AS operationCount"
+    )
+    .get();
+
+  return Number(row?.personnelCount || 0) === 0 && Number(row?.operationCount || 0) === 0;
+}
+
+function seedDbFromLegacyWorkbookIfNeeded() {
+  const legacyWorkbookPath = path.join(__dirname, "CİHAZ ÜRETİM YETKİNLİK MATRİSİ_20261901.xlsx");
+  const importWorkbookPath = String(process.env.IMPORT_WORKBOOK_PATH || legacyWorkbookPath);
+
+  if (!isDbEmpty()) {
+    return { seeded: false, sourceWorkbookPath: null };
+  }
+
+  if (!fsSync.existsSync(importWorkbookPath)) {
+    return { seeded: false, sourceWorkbookPath: null };
+  }
+
+  importWorkbookToDb({ db, workbookPath: importWorkbookPath });
+  return { seeded: true, sourceWorkbookPath: importWorkbookPath };
+}
+
+function exportDbToWorkbookAndReloadAnalytics() {
+  exportDataWorkbook({ db, workbookPath: DATA_WORKBOOK_PATH });
+  return reloadWorkbookAnalytics();
 }
 
 async function saveTodayGrowthSnapshot() {
@@ -185,6 +223,8 @@ app.get("/health", (req, res) => {
     workbookLoaded: Boolean(workbookAnalytics),
     workbookLoadedAt: workbookAnalytics?.loadedAt || null,
     workbookPath: WORKBOOK_PATH,
+    dataWorkbookPath: DATA_WORKBOOK_PATH,
+    dbPath: DB_PATH,
     productsPath: DATA_FILE,
     growthHistoryPath: PERSONNEL_GROWTH_FILE,
     storageDir: STORAGE_DIR,
@@ -245,6 +285,160 @@ app.post("/analytics/reload", (req, res) => {
     loadedAt: analytics.loadedAt,
     workbookPath: analytics.workbookPath
   });
+});
+
+function requireAdmin(req, res) {
+  const provided = String(req.headers["x-admin-password"] || "");
+
+  if (!provided || provided !== ADMIN_PASSWORD) {
+    res.status(401).json({ error: "Yetkisiz" });
+    return false;
+  }
+
+  return true;
+}
+
+app.get("/admin/meta", (req, res) => {
+  if (!requireAdmin(req, res)) {
+    return;
+  }
+
+  res.status(200).json({
+    dbPath: DB_PATH,
+    dataWorkbookPath: DATA_WORKBOOK_PATH
+  });
+});
+
+app.get("/admin/personnel", (req, res) => {
+  if (!requireAdmin(req, res)) {
+    return;
+  }
+
+  res.status(200).json(listPersonnel(db));
+});
+
+app.post("/admin/personnel", (req, res, next) => {
+  if (!requireAdmin(req, res)) {
+    return;
+  }
+
+  try {
+    const created = createPersonnel(db, req.body);
+    exportDbToWorkbookAndReloadAnalytics();
+    res.status(201).json(created);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put("/admin/personnel/:id", (req, res, next) => {
+  if (!requireAdmin(req, res)) {
+    return;
+  }
+
+  try {
+    const id = Number(req.params.id);
+    const updated = updatePersonnel(db, id, req.body);
+    exportDbToWorkbookAndReloadAnalytics();
+    res.status(200).json(updated);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/admin/personnel/:id", (req, res, next) => {
+  if (!requireAdmin(req, res)) {
+    return;
+  }
+
+  try {
+    const id = Number(req.params.id);
+    const deleted = deletePersonnel(db, id);
+    exportDbToWorkbookAndReloadAnalytics();
+    res.status(200).json(deleted);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/admin/operations", (req, res) => {
+  if (!requireAdmin(req, res)) {
+    return;
+  }
+
+  res.status(200).json(listOperations(db));
+});
+
+app.post("/admin/operations", (req, res, next) => {
+  if (!requireAdmin(req, res)) {
+    return;
+  }
+
+  try {
+    const created = createOperation(db, req.body);
+    exportDbToWorkbookAndReloadAnalytics();
+    res.status(201).json(created);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put("/admin/operations/:id", (req, res, next) => {
+  if (!requireAdmin(req, res)) {
+    return;
+  }
+
+  try {
+    const id = Number(req.params.id);
+    const updated = updateOperation(db, id, req.body);
+    exportDbToWorkbookAndReloadAnalytics();
+    res.status(200).json(updated);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete("/admin/operations/:id", (req, res, next) => {
+  if (!requireAdmin(req, res)) {
+    return;
+  }
+
+  try {
+    const id = Number(req.params.id);
+    const deleted = deleteOperation(db, id);
+    exportDbToWorkbookAndReloadAnalytics();
+    res.status(200).json(deleted);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/admin/operations/:id/scores", (req, res, next) => {
+  if (!requireAdmin(req, res)) {
+    return;
+  }
+
+  try {
+    const id = Number(req.params.id);
+    res.status(200).json(listOperationScores(db, id));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.put("/admin/operations/:id/scores", (req, res, next) => {
+  if (!requireAdmin(req, res)) {
+    return;
+  }
+
+  try {
+    const id = Number(req.params.id);
+    setOperationScores(db, id, req.body?.updates || []);
+    exportDbToWorkbookAndReloadAnalytics();
+    res.status(200).json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
 });
 
 async function handlePersonnelGrowthReport(req, res, next) {
@@ -435,12 +629,18 @@ function errorStatusCode(err) {
     return err.statusCode;
   }
 
+  if (String(err?.code || "").startsWith("SQLITE_CONSTRAINT")) {
+    return 400;
+  }
+
   return 500;
 }
 
 loadProducts()
   .then(async () => {
-    reloadWorkbookAnalytics();
+    db = openDb(DB_PATH);
+    seedDbFromLegacyWorkbookIfNeeded();
+    exportDbToWorkbookAndReloadAnalytics();
     scheduleMidnightRefresh();
     app.listen(PORT, HOST, () => {
       console.log(`Server http://${HOST}:${PORT} adresinde calisiyor`);
